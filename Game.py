@@ -6,9 +6,9 @@ import sdl2.sdlttf
 import sdl2.sdlmixer
 import cv2
 import sys
-from enum import Enum, auto
 
-from utils import SCREEN_W, SCREEN_H, FRAMERATE, MAX_TRIALS, CHOICE_SECONDS, Mode, Target, Action, should_close, time_int, detect_action
+from Utils import FRAMERATE, MAX_TRIALS, CHOICE_SECONDS, Mode, Target, Action, should_close, time_int
+from Hands_mp import SlapTracker
 
 if __name__ == "__main__":
     sdl2.ext.init(sdl2.SDL_INIT_VIDEO)
@@ -37,6 +37,7 @@ if __name__ == "__main__":
         sys.exit(-1)
     height, width, channels = image.shape
     webcam_texture = sdl2.SDL_CreateTexture(renderer.sdlrenderer, sdl2.SDL_PIXELFORMAT_RGB24, sdl2.SDL_TEXTUREACCESS_STATIC, width, height)
+    slap_checker: SlapTracker = SlapTracker()
     background_rect = sdl2.SDL_Rect(0, 0, SCREEN_W, SCREEN_H)
     text_rect = sdl2.SDL_Rect(SCREEN_W // 2 - 250, SCREEN_H // 2 - 250, 500, 500)
     timer_rect = sdl2.SDL_Rect(SCREEN_W // 2 - 100, 100, 200, 200)
@@ -72,6 +73,11 @@ if __name__ == "__main__":
         text_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended(font, f"{n}".encode("utf-8"), white)
         timer_textures.append(sdl2.SDL_CreateTextureFromSurface(renderer.sdlrenderer, text_surface))
         sdl2.SDL_FreeSurface(text_surface)
+    actions_textures = {}
+    for a in Action:
+        text_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended(font, f"{a}".encode("utf-8"), white)
+        actions_textures[a.value] = sdl2.SDL_CreateTextureFromSurface(renderer.sdlrenderer, text_surface)
+        sdl2.SDL_FreeSurface(text_surface)
     sprite_background = factory.from_image("images/Arena-01.png")
     sdl2.SDL_SetTextureBlendMode(sprite_background.texture, sdl2.SDL_BLENDMODE_BLEND)
     sprites = [
@@ -87,7 +93,9 @@ if __name__ == "__main__":
         sdl2.SDL_SetTextureBlendMode(s1.texture, sdl2.SDL_BLENDMODE_BLEND)
         sdl2.SDL_SetTextureBlendMode(s2.texture, sdl2.SDL_BLENDMODE_BLEND)
     current_sprite, current_bg_sprite, current_target = random.choice(sprites)
-    available_bg_positions: list = [sdl2.SDL_Rect(200 * i, 200, 200, 200) for i in range(1, 10)]
+    available_bg_positions: list = ([sdl2.SDL_Rect(200 * i, 200, 200, 200) for i in range(1, 9)] +
+                                    [sdl2.SDL_Rect(200 * i, 400, 200, 200) for i in range(1, 9)] +
+                                    [sdl2.SDL_Rect(200 * i, 600, 200, 200) for i in range(1, 9)])
     random.shuffle(available_bg_positions)
     sprite_museum: list = []
     start_time: int = time_int()
@@ -105,7 +113,7 @@ if __name__ == "__main__":
                 break
             if event.key.keysym.sym == sdl2.SDLK_p:
                 manual_choice = Action.PET
-            if event.key.keysym.sym == sdl2.SDLK_s:
+            if event.key.keysym.sym == sdl2.SDLK_a:
                 manual_choice = Action.SLAP_LEFT
             if event.key.keysym.sym == sdl2.SDLK_d:
                 manual_choice = Action.SLAP_RIGHT
@@ -113,8 +121,7 @@ if __name__ == "__main__":
         success, image = webcam.read()
         if not success:
             continue
-        image = cv2.flip(image, 1)
-        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.cvtColor(cv2.flip(image, 1), cv2.COLOR_BGR2RGB)
         sdl2.SDL_RenderClear(renderer.sdlrenderer)
         timestamp = time_int()
         if (timestamp - start_time) >= 1000 or game_mode != Mode.CONSEQUENCE or chosen_action == Action.NOTHING or current_target != Target.DANGER:
@@ -128,7 +135,7 @@ if __name__ == "__main__":
         sdl2.SDL_RenderCopy(renderer.sdlrenderer, sprite_background.texture, None, background_rect)
         for i in range(len(sprite_museum)):
             sdl2.SDL_RenderCopy(renderer.sdlrenderer, sprite_museum[i][0].texture, None, sprite_museum[i][1])
-        sdl2.SDL_UpdateTexture(webcam_texture, None, image_rgb.ctypes.data, width * 3)
+        sdl2.SDL_UpdateTexture(webcam_texture, None, image.ctypes.data, width * 3)
         sdl2.SDL_RenderCopy(renderer.sdlrenderer, webcam_texture, None, webcam_rect)
         if game_mode == Mode.LOAD:
             percentage: float = (timestamp - start_time) / 500
@@ -155,16 +162,39 @@ if __name__ == "__main__":
                 chosen_action = manual_choice
                 game_mode = Mode.CONSEQUENCE
                 start_time = timestamp
-            # action = detect_action()
-            # if action is not None:
-            #     chosen_action = action
-            #     game_mode = Mode.CONSEQUENCE
+            hand_landmarks = slap_checker.detect_hand(image)
+            if hand_landmarks is not None:
+                for landmark in hand_landmarks:
+                    x = int(landmark.x * 300) - 2
+                    y = int(landmark.y * 200) - 2
+                    sdl2.SDL_SetRenderDrawColor(renderer.sdlrenderer, 0, 0, 255, 255)
+                    sdl2.SDL_RenderFillRect(renderer.sdlrenderer, sdl2.SDL_Rect(webcam_rect.x + x, webcam_rect.y + y, 4, 4))
+                for start, end in [
+                    (0, 1), (1, 2), (2, 3), (3, 4), (0, 5),
+                    (5, 6), (6, 7), (7, 8), (5, 9), (9, 10),
+                    (10, 11), (11, 12), (9, 13), (13, 14), (14, 15),
+                    (15, 16), (13, 17), (17, 18), (18, 19), (19, 20),
+                    (0, 17)
+                ]:
+                    sdl2.SDL_SetRenderDrawColor(renderer.sdlrenderer, 0, 255, 0, 255)
+                    sdl2.SDL_RenderDrawLine(renderer.sdlrenderer,
+                        webcam_rect.x + int(hand_landmarks[start].x * 300), webcam_rect.y + int(hand_landmarks[start].y * 200),
+                        webcam_rect.x + int(hand_landmarks[end].x * 300), webcam_rect.y + int(hand_landmarks[end].y * 200))
+                action = slap_checker.check_slap(hand_landmarks)
+                if action != Action.NOTHING:
+                    chosen_action = action
+                    game_mode = Mode.CONSEQUENCE
+                    slap_checker.reset()
+                    start_time = timestamp
 
         elif game_mode == Mode.CONSEQUENCE:
+            sdl2.SDL_RenderCopy(renderer.sdlrenderer, actions_textures[chosen_action.value], None, sdl2.SDL_Rect(50, 50, 1870, 100))
             if timestamp - start_time >= 1000:
                 if (current_target == Target.CUTE and chosen_action == Action.PET) or (current_target == Target.DANGER and chosen_action == Action.NOTHING):
                     chosen_position = available_bg_positions.pop(-1)
                     sprite_museum.append((current_bg_sprite, chosen_position))
+                    sdl2.SDL_SetTextureAlphaMod(current_bg_sprite.texture, 255)
+                    sdl2.SDL_RenderCopy(renderer.sdlrenderer, current_bg_sprite.texture, None, chosen_position)
                     random.shuffle(sprite_museum)
                 if current_target == Target.UGLY and chosen_action != Action.SLAP_RIGHT and chosen_action != Action.SLAP_LEFT and len(sprite_museum) > 0:
                     available_bg_positions.append(sprite_museum.pop(len(sprite_museum) - 1)[1])
@@ -194,7 +224,6 @@ if __name__ == "__main__":
                     sdl2.SDL_SetTextureAlphaMod(current_bg_sprite.texture, int(255 * percentage))
                     sdl2.SDL_RenderCopy(renderer.sdlrenderer, current_sprite.texture, None, current_rect)
                     sdl2.SDL_RenderCopy(renderer.sdlrenderer, current_bg_sprite.texture, None, current_rect)
-                    #pain with the dangerous targets is dealt with in the other screen; ugly targets are dealt with in the first if
                 elif chosen_action == Action.SLAP_LEFT:
                     current_rect = sdl2.SDL_Rect(
                         int((-SCREEN_W / 3 - image_rect.w / 2) * percentage + image_rect.x * (1 - percentage)),
@@ -219,3 +248,7 @@ if __name__ == "__main__":
             time.sleep((1000 / FRAMERATE - current_tick + prev_tick) / 1000)
         renderer.present()
         prev_tick = time_int()
+    slap_checker.shutdown()
+    sdl2.sdlttf.TTF_CloseFont(font)
+    sdl2.sdlttf.TTF_Quit()
+    sdl2.SDL_Quit()

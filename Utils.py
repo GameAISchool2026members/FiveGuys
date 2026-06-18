@@ -4,11 +4,9 @@ import sdl2
 import sdl2.ext
 import sdl2.sdlttf
 
-SCREEN_W: int = 1920
-SCREEN_H: int = 1080
 FRAMERATE: int = 30
 MAX_TRIALS: int = 20
-CHOICE_SECONDS: int = 3
+CHOICE_SECONDS: int = 5
 
 
 class Mode(Enum):
@@ -28,10 +26,6 @@ class Action(Enum):
     SLAP_RIGHT = auto()
     PET = auto()
     NOTHING = auto()
-
-
-def detect_action():
-    pass
 
 
 def should_close() -> bool:
