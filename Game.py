@@ -94,14 +94,14 @@ while running and trials < MAX_TRIALS:
         continue
     image = cv2.flip(image, 1)
     image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    sdl2.SDL_UpdateTexture(webcam_texture, None, image_rgb.ctypes.data, width * 3)
     sdl2.SDL_RenderClear(renderer.sdlrenderer)
+    sdl2.SDL_UpdateTexture(webcam_texture, None, image_rgb.ctypes.data, width * 3)
     sdl2.SDL_RenderCopy(renderer.sdlrenderer, webcam_texture, None, webcam_rect)
     sdl2.SDL_RenderPresent(renderer.sdlrenderer)
     timestamp = utils.time_int()
     if game_mode == Mode.LOAD:
         step += 1
-        if step >= 30:
+        if step >= utils.FRAMERATE // 2:
             print(timestamp - start_time)
             start_time = timestamp
             game_mode = Mode.CHOICE
@@ -114,6 +114,8 @@ while running and trials < MAX_TRIALS:
                                               int(800 * multiplicator), int(800 * multiplicator))
             sdl2.SDL_RenderCopyEx(renderer.sdlrenderer, sprite_doge.texture, None, current_step_rect, 0.0, None, sdl2.SDL_FLIP_NONE)
     elif game_mode == Mode.CHOICE:
+        sdl2.SDL_RenderCopy(renderer.sdlrenderer, text_texture, None, timer_rect)
+        sdl2.SDL_RenderCopyEx(renderer.sdlrenderer, sprite_doge.texture, None, image_rect, 0.0, None, sdl2.SDL_FLIP_NONE)
         if timestamp - start_time >= 1000:
             start_time = timestamp
             mode_seconds -= 1
@@ -126,8 +128,6 @@ while running and trials < MAX_TRIALS:
                 sdl2.SDL_DestroyTexture(text_texture)
                 game_mode = Mode.CONSEQUENCE
                 start_time = timestamp
-        sdl2.SDL_RenderCopy(renderer.sdlrenderer, text_texture, None, timer_rect)
-        sdl2.SDL_RenderCopyEx(renderer.sdlrenderer, sprite_doge.texture, None, image_rect, 0.0, None, sdl2.SDL_FLIP_NONE)
     elif game_mode == Mode.CONSEQUENCE:
         sdl2.SDL_RenderCopyEx(renderer.sdlrenderer, sprite_doge.texture, None, image_rect, 0.0, None, sdl2.SDL_FLIP_HORIZONTAL)
     else:
