@@ -6,7 +6,7 @@ import sdl2.sdlttf
 
 FRAMERATE: int = 30
 MAX_TRIALS: int = 20
-CHOICE_SECONDS: int = 5
+CHOICE_SECONDS: int = 4
 
 
 class Mode(Enum):

@@ -17,7 +17,7 @@ if __name__ == "__main__":
     sdl2.SDL_GetCurrentDisplayMode(0, mode)
     SCREEN_W = mode.w
     SCREEN_H = mode.h
-    window = sdl2.ext.Window("HELLO!", size=(SCREEN_W, SCREEN_H), flags=sdl2.SDL_WINDOW_FULLSCREEN_DESKTOP)
+    window = sdl2.ext.Window("GAME", size=(SCREEN_W, SCREEN_H), flags=sdl2.SDL_WINDOW_FULLSCREEN_DESKTOP)
     renderer = sdl2.ext.Renderer(window)
 
     red = sdl2.ext.Color(255, 0, 0)
@@ -44,27 +44,27 @@ if __name__ == "__main__":
     webcam_rect = sdl2.SDL_Rect(SCREEN_W - 300, SCREEN_H - 200, 300, 200)
     image_rect = sdl2.SDL_Rect(SCREEN_W // 2 - 250, SCREEN_H - 500, 500, 500)
     running: bool = True
-    time_displayed: int = 3
+    time_displayed: int = CHOICE_SECONDS
     renderer.color = black
     prev_tick: int = time_int()
-    # for n in range(3, 0, -1):
-    #     text_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended(font, f"{n}".encode("utf-8"), white)
-    #     texture = sdl2.SDL_CreateTextureFromSurface(renderer.sdlrenderer, text_surface)
-    #     sdl2.SDL_FreeSurface(text_surface)
-    #     for _ in range(FRAMERATE):
-    #         renderer.clear()
-    #         sdl2.SDL_RenderCopy(renderer.sdlrenderer, texture, None, text_rect)
-    #         current_tick: int = time_int()
-    #         if (current_tick - prev_tick) * FRAMERATE < 1000:
-    #             time.sleep((1000 / FRAMERATE - current_tick + prev_tick) / 1000)
-    #         renderer.present()
-    #         prev_tick = time_int()
-    #         if should_close():
-    #             running = False
-    #             break
-    #     sdl2.SDL_DestroyTexture(texture)
-    #     if not running:
-    #         break
+    for n in range(3, 0, -1):
+        text_surface = sdl2.sdlttf.TTF_RenderUTF8_Blended(font, f"{n}".encode("utf-8"), white)
+        texture = sdl2.SDL_CreateTextureFromSurface(renderer.sdlrenderer, text_surface)
+        sdl2.SDL_FreeSurface(text_surface)
+        for _ in range(FRAMERATE):
+            renderer.clear()
+            sdl2.SDL_RenderCopy(renderer.sdlrenderer, texture, None, text_rect)
+            current_tick: int = time_int()
+            if (current_tick - prev_tick) * FRAMERATE < 1000:
+                time.sleep((1000 / FRAMERATE - current_tick + prev_tick) / 1000)
+            renderer.present()
+            prev_tick = time_int()
+            if should_close():
+                running = False
+                break
+        sdl2.SDL_DestroyTexture(texture)
+        if not running:
+            break
     trials: int = 0
     game_mode: Mode = Mode.LOAD
     chosen_action: Action = Action.NOTHING
