@@ -5,10 +5,10 @@ That slaps is a fast paced game where you need to let the cute creatures into th
 
 ### How to play:
 Move your hand horizontally to slap dopplegangers
-<p><img src="images/capybara_evil.png" alt="Logo" width="100"></p><p><img src="images/cat_evil.png" alt="Logo" width="100"></p><p><img src="images/duck_evil.png" alt="Logo" width="100"></p>
+<p><img src="images/capybara_evil.png" alt="Logo" width="100"><img src="images/cat_evil.png" alt="Logo" width="100"><img src="images/duck_evil.png" alt="Logo" width="100"></p>
 
 and vertically to pet the creatures
-<p><img src="images/capybara_good.png" alt="Logo" width="100"></p><p><img src="images/cat_good.png" alt="Logo" width="100"></p><p><img src="images/duck_good.png" alt="Logo" width="100"></p>
+<p><img src="images/capybara_good.png" alt="Logo" width="100"><img src="images/cat_good.png" alt="Logo" width="100"><img src="images/duck_good.png" alt="Logo" width="100"></p>
 
 Do not touch the hedgehog!
 <p><img src="images/Hedgehog_NoTouch.png" alt="Logo" width="100">
