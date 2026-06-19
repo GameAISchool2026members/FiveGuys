@@ -8,7 +8,7 @@ import cv2
 import sys
 
 from Utils import FRAMERATE, MAX_TRIALS, CHOICE_SECONDS, Mode, Target, Action, should_close, time_int
-from apis.Gestures import GestureStream, CAPTURE_WIDTH, CAPTURE_HEIGHT
+from Hands_mp import SlapTracker
 
 if __name__ == "__main__":
     sdl2.ext.init(sdl2.SDL_INIT_VIDEO)
@@ -45,8 +45,7 @@ if __name__ == "__main__":
         sys.exit(-1)
     height, width, channels = image.shape
     webcam_texture = sdl2.SDL_CreateTexture(renderer.sdlrenderer, sdl2.SDL_PIXELFORMAT_RGB24, sdl2.SDL_TEXTUREACCESS_STATIC, width, height)
-    #slap_checker: SlapTracker = SlapTracker()
-    slap_checker: GestureStream = GestureStream()
+    slap_checker: SlapTracker = SlapTracker()
     background_rect = sdl2.SDL_Rect(0, 0, SCREEN_W, SCREEN_H)
     text_rect = sdl2.SDL_Rect(SCREEN_W // 2 - 250, SCREEN_H // 2 - 250, 500, 500)
     timer_rect = sdl2.SDL_Rect(SCREEN_W // 2 - 100, 100, 200, 200)
@@ -74,22 +73,45 @@ if __name__ == "__main__":
         sdl2.SDL_RenderCopy(renderer.sdlrenderer, instructions_texture.texture, None, background_rect)
         sdl2.SDL_UpdateTexture(webcam_texture, None, cv2.cvtColor(image, cv2.COLOR_BGR2RGB).ctypes.data, width * 3)
         sdl2.SDL_RenderCopy(renderer.sdlrenderer, webcam_texture, None, webcam_rect)
-        result = slap_checker.push(image)
-        if result.decision == "pet":
-            slap_checker.reset()
-            not_cleared = False
-            sdl2.sdlmixer.Mix_PlayChannel(-1, happy_capybara_sound, 0)
-        if len(result.detections) > 0:
-            for det in result.detections:
-                x1, y1, x2, y2 = det['bbox']
-                current_rect = sdl2.SDL_Rect(
-                    webcam_rect.x + int(webcam_rect.w * x1 / CAPTURE_WIDTH),
-                    webcam_rect.y + int(webcam_rect.h * y1 / CAPTURE_HEIGHT),
-                    int(webcam_rect.w * (x2 - x1) / CAPTURE_WIDTH),
-                    int(webcam_rect.h * (y2 - y1) / CAPTURE_HEIGHT)
-                )
-                renderer.color = blue
-                sdl2.SDL_RenderDrawRect(renderer.sdlrenderer, current_rect)
+        hand_landmarks = slap_checker.detect_hand(image)
+        if hand_landmarks is not None:
+            for landmark in hand_landmarks:
+                x = int(landmark.x * 300) - 2
+                y = int(landmark.y * 200) - 2
+                sdl2.SDL_SetRenderDrawColor(renderer.sdlrenderer, 0, 0, 255, 255)
+                sdl2.SDL_RenderFillRect(renderer.sdlrenderer, sdl2.SDL_Rect(webcam_rect.x + x, webcam_rect.y + y, 4, 4))
+            for start, end in [
+                (0, 1), (1, 2), (2, 3), (3, 4), (0, 5),
+                (5, 6), (6, 7), (7, 8), (5, 9), (9, 10),
+                (10, 11), (11, 12), (9, 13), (13, 14), (14, 15),
+                (15, 16), (13, 17), (17, 18), (18, 19), (19, 20),
+                (0, 17)
+            ]:
+                sdl2.SDL_SetRenderDrawColor(renderer.sdlrenderer, 0, 255, 0, 255)
+                sdl2.SDL_RenderDrawLine(renderer.sdlrenderer,
+                                        webcam_rect.x + int(hand_landmarks[start].x * 300), webcam_rect.y + int(hand_landmarks[start].y * 200),
+                                        webcam_rect.x + int(hand_landmarks[end].x * 300), webcam_rect.y + int(hand_landmarks[end].y * 200))
+            action = slap_checker.check_slap(hand_landmarks)
+            if action == Action.PET:
+                slap_checker.reset()
+                not_cleared = False
+                sdl2.sdlmixer.Mix_PlayChannel(-1, happy_capybara_sound, 0)
+        # result = slap_checker.push(image)
+        # if result.decision == "pet":
+        #     slap_checker.reset()
+        #     not_cleared = False
+        #     sdl2.sdlmixer.Mix_PlayChannel(-1, happy_capybara_sound, 0)
+        # if len(result.detections) > 0:
+        #     for det in result.detections:
+        #         x1, y1, x2, y2 = det['bbox']
+        #         current_rect = sdl2.SDL_Rect(
+        #             webcam_rect.x + int(webcam_rect.w * x1 / CAPTURE_WIDTH),
+        #             webcam_rect.y + int(webcam_rect.h * y1 / CAPTURE_HEIGHT),
+        #             int(webcam_rect.w * (x2 - x1) / CAPTURE_WIDTH),
+        #             int(webcam_rect.h * (y2 - y1) / CAPTURE_HEIGHT)
+        #         )
+        #         renderer.color = blue
+        #         sdl2.SDL_RenderDrawRect(renderer.sdlrenderer, current_rect)
         renderer.color = black
         current_tick: int = time_int()
         if (current_tick - prev_tick) * FRAMERATE < 1000:
@@ -115,22 +137,45 @@ if __name__ == "__main__":
         sdl2.SDL_RenderCopy(renderer.sdlrenderer, instructions_texture.texture, None, background_rect)
         sdl2.SDL_UpdateTexture(webcam_texture, None, image.ctypes.data, width * 3)
         sdl2.SDL_RenderCopy(renderer.sdlrenderer, webcam_texture, None, webcam_rect)
-        result = slap_checker.push(image)
-        if result.decision == "slap_left" or result.decision == "slap_right":
-            slap_checker.reset()
-            not_cleared = False
-            sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
-        if len(result.detections) > 0:
-            for det in result.detections:
-                x1, y1, x2, y2 = det['bbox']
-                current_rect = sdl2.SDL_Rect(
-                    webcam_rect.x + int(webcam_rect.w * x1 / CAPTURE_WIDTH),
-                    webcam_rect.y + int(webcam_rect.h * y1 / CAPTURE_HEIGHT),
-                    int(webcam_rect.w * (x2 - x1) / CAPTURE_WIDTH),
-                    int(webcam_rect.h * (y2 - y1) / CAPTURE_HEIGHT)
-                )
-                renderer.color = blue
-                sdl2.SDL_RenderDrawRect(renderer.sdlrenderer, current_rect)
+        hand_landmarks = slap_checker.detect_hand(image)
+        if hand_landmarks is not None:
+            for landmark in hand_landmarks:
+                x = int(landmark.x * 300) - 2
+                y = int(landmark.y * 200) - 2
+                sdl2.SDL_SetRenderDrawColor(renderer.sdlrenderer, 0, 0, 255, 255)
+                sdl2.SDL_RenderFillRect(renderer.sdlrenderer, sdl2.SDL_Rect(webcam_rect.x + x, webcam_rect.y + y, 4, 4))
+            for start, end in [
+                (0, 1), (1, 2), (2, 3), (3, 4), (0, 5),
+                (5, 6), (6, 7), (7, 8), (5, 9), (9, 10),
+                (10, 11), (11, 12), (9, 13), (13, 14), (14, 15),
+                (15, 16), (13, 17), (17, 18), (18, 19), (19, 20),
+                (0, 17)
+            ]:
+                sdl2.SDL_SetRenderDrawColor(renderer.sdlrenderer, 0, 255, 0, 255)
+                sdl2.SDL_RenderDrawLine(renderer.sdlrenderer,
+                                        webcam_rect.x + int(hand_landmarks[start].x * 300), webcam_rect.y + int(hand_landmarks[start].y * 200),
+                                        webcam_rect.x + int(hand_landmarks[end].x * 300), webcam_rect.y + int(hand_landmarks[end].y * 200))
+            action = slap_checker.check_slap(hand_landmarks)
+            if action == Action.SLAP_LEFT or action == Action.SLAP_RIGHT:
+                slap_checker.reset()
+                not_cleared = False
+                sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
+        # result = slap_checker.push(image)
+        # if result.decision == "slap_left" or result.decision == "slap_right":
+        #     slap_checker.reset()
+        #     not_cleared = False
+        #     sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
+        # if len(result.detections) > 0:
+        #     for det in result.detections:
+        #         x1, y1, x2, y2 = det['bbox']
+        #         current_rect = sdl2.SDL_Rect(
+        #             webcam_rect.x + int(webcam_rect.w * x1 / CAPTURE_WIDTH),
+        #             webcam_rect.y + int(webcam_rect.h * y1 / CAPTURE_HEIGHT),
+        #             int(webcam_rect.w * (x2 - x1) / CAPTURE_WIDTH),
+        #             int(webcam_rect.h * (y2 - y1) / CAPTURE_HEIGHT)
+        #         )
+        #         renderer.color = blue
+        #         sdl2.SDL_RenderDrawRect(renderer.sdlrenderer, current_rect)
         renderer.color = black
         current_tick: int = time_int()
         if (current_tick - prev_tick) * FRAMERATE < 1000:
@@ -182,7 +227,7 @@ if __name__ == "__main__":
     explosion_animation = []
     for i in range(28):
         #explosion_animation.append(factory.from_image(f"images/poof_{i}.png"))
-        explosion_animation.append(factory.from_image(f"images/Testing/Doge_inv.png"))
+        explosion_animation.append(factory.from_image(f"images/Poof Frames/poof{i}.png"))
     for s1, s2, _, _ in sprites:
         sdl2.SDL_SetTextureBlendMode(s1.texture, sdl2.SDL_BLENDMODE_BLEND)
         sdl2.SDL_SetTextureBlendMode(s2.texture, sdl2.SDL_BLENDMODE_BLEND)
@@ -203,21 +248,9 @@ if __name__ == "__main__":
     while running and trials < MAX_TRIALS:
         renderer.color = red
         renderer.clear()
-        # if should_close():
-        #     running = False
-        #     break
-        events = sdl2.ext.get_events()
-        manual_choice = Action.NOTHING
-        for event in events:
-            if event.type == sdl2.SDL_QUIT or (event.type == sdl2.SDL_KEYUP and (event.key.keysym.sym == sdl2.SDLK_ESCAPE)):
-                running = False
-                break
-            if event.key.keysym.sym == sdl2.SDLK_p:
-                manual_choice = Action.PET
-            if event.key.keysym.sym == sdl2.SDLK_a:
-                manual_choice = Action.SLAP_LEFT
-            if event.key.keysym.sym == sdl2.SDLK_d:
-                manual_choice = Action.SLAP_RIGHT
+        if should_close():
+            running = False
+            break
 
         success, image = webcam.read()
         if not success:
@@ -267,35 +300,65 @@ if __name__ == "__main__":
                 if time_displayed == 0:
                     game_mode = Mode.CONSEQUENCE
                     start_time = timestamp
-            if manual_choice != Action.NOTHING:
-                chosen_action = manual_choice
-                game_mode = Mode.CONSEQUENCE
-                start_time = timestamp
-            result = slap_checker.push(image)
-            if result.decision != "stall" and result.decision != "neutral":
-                slap_checker.reset()
-                game_mode = Mode.CONSEQUENCE
-                start_time = timestamp
-                if result.decision == "pet":
-                    chosen_action = Action.PET
-                    sdl2.sdlmixer.Mix_PlayChannel(-1, target_sound, 0)
-                elif result.decision == "slap_left":
-                    chosen_action = Action.SLAP_LEFT
-                    sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
-                elif result.decision == "slap_right":
-                    chosen_action = Action.SLAP_RIGHT
-                    sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
-            if len(result.detections) > 0:
-                for det in result.detections:
-                    x1, y1, x2, y2 = det['bbox']
-                    current_rect = sdl2.SDL_Rect(
-                        webcam_rect.x + int(webcam_rect.w * x1 / CAPTURE_WIDTH),
-                        webcam_rect.y + int(webcam_rect.h * y1 / CAPTURE_HEIGHT),
-                        int(webcam_rect.w * (x2 - x1) / CAPTURE_WIDTH),
-                        int(webcam_rect.h * (y2 - y1) / CAPTURE_HEIGHT)
-                    )
-                    renderer.color = blue
-                    sdl2.SDL_RenderDrawRect(renderer.sdlrenderer, current_rect)
+                    if current_target == Target.DANGER:
+                        sdl2.sdlmixer.Mix_PlayChannel(-1, target_sound, 0)
+                    elif current_target == Target.UGLY:
+                        sdl2.sdlmixer.Mix_PlayChannel(-1, chomp_sound, 0)
+            hand_landmarks = slap_checker.detect_hand(image)
+            if hand_landmarks is not None:
+                for landmark in hand_landmarks:
+                    x = int(landmark.x * 300) - 2
+                    y = int(landmark.y * 200) - 2
+                    sdl2.SDL_SetRenderDrawColor(renderer.sdlrenderer, 0, 0, 255, 255)
+                    sdl2.SDL_RenderFillRect(renderer.sdlrenderer, sdl2.SDL_Rect(webcam_rect.x + x, webcam_rect.y + y, 4, 4))
+                for start, end in [
+                    (0, 1), (1, 2), (2, 3), (3, 4), (0, 5),
+                    (5, 6), (6, 7), (7, 8), (5, 9), (9, 10),
+                    (10, 11), (11, 12), (9, 13), (13, 14), (14, 15),
+                    (15, 16), (13, 17), (17, 18), (18, 19), (19, 20),
+                    (0, 17)
+                ]:
+                    sdl2.SDL_SetRenderDrawColor(renderer.sdlrenderer, 0, 255, 0, 255)
+                    sdl2.SDL_RenderDrawLine(renderer.sdlrenderer,
+                                            webcam_rect.x + int(hand_landmarks[start].x * 300), webcam_rect.y + int(hand_landmarks[start].y * 200),
+                                            webcam_rect.x + int(hand_landmarks[end].x * 300), webcam_rect.y + int(hand_landmarks[end].y * 200))
+                action = slap_checker.check_slap(hand_landmarks)
+                if action != Action.NOTHING:
+                    chosen_action = action
+                    game_mode = Mode.CONSEQUENCE
+                    slap_checker.reset()
+                    start_time = timestamp
+                    if action == Action.PET:
+                        sdl2.sdlmixer.Mix_PlayChannel(-1, target_sound, 0)
+                    elif action == Action.SLAP_LEFT:
+                        sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
+                    elif action == Action.SLAP_RIGHT:
+                        sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
+            # result = slap_checker.push(image)
+            # if result.decision != "stall" and result.decision != "neutral":
+            #     slap_checker.reset()
+            #     game_mode = Mode.CONSEQUENCE
+            #     start_time = timestamp
+            #     if result.decision == "pet":
+            #         chosen_action = Action.PET
+            #         sdl2.sdlmixer.Mix_PlayChannel(-1, target_sound, 0)
+            #     elif result.decision == "slap_left":
+            #         chosen_action = Action.SLAP_LEFT
+            #         sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
+            #     elif result.decision == "slap_right":
+            #         chosen_action = Action.SLAP_RIGHT
+            #         sdl2.sdlmixer.Mix_PlayChannel(-1, slap_sound, 0)
+            # if len(result.detections) > 0:
+            #     for det in result.detections:
+            #         x1, y1, x2, y2 = det['bbox']
+            #         current_rect = sdl2.SDL_Rect(
+            #             webcam_rect.x + int(webcam_rect.w * x1 / CAPTURE_WIDTH),
+            #             webcam_rect.y + int(webcam_rect.h * y1 / CAPTURE_HEIGHT),
+            #             int(webcam_rect.w * (x2 - x1) / CAPTURE_WIDTH),
+            #             int(webcam_rect.h * (y2 - y1) / CAPTURE_HEIGHT)
+            #         )
+            #         renderer.color = blue
+            #         sdl2.SDL_RenderDrawRect(renderer.sdlrenderer, current_rect)
 
         elif game_mode == Mode.CONSEQUENCE:
             if timestamp - start_time >= 1000:
