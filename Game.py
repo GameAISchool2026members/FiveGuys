@@ -38,6 +38,7 @@ if __name__ == "__main__":
     happy_duck_sound = sdl2.sdlmixer.Mix_LoadWAV(b"Sfx/happy duck.wav")
     happy_hedgehog_sound = sdl2.sdlmixer.Mix_LoadWAV(b"Sfx/hedgehog thanks.wav")
     slap_sound = sdl2.sdlmixer.Mix_LoadWAV(b"Sfx/slap.wav")
+    applause_sound = sdl2.sdlmixer.Mix_LoadWAV(b"Sfx/Applause.wav")
 
     webcam = cv2.VideoCapture(0)
     success, image = webcam.read()
@@ -373,8 +374,6 @@ if __name__ == "__main__":
                     random.shuffle(available_bg_positions)
                 start_time = timestamp
                 current_sprite, current_bg_sprite, current_target, target_sound = random.choice(sprites)
-                while len(sprite_museum) == 0 and current_target == Target.UGLY:
-                    current_sprite, current_bg_sprite, current_target, target_sound = random.choice(sprites)
                 sdl2.SDL_SetTextureAlphaMod(current_sprite.texture, 255)
                 game_mode = Mode.LOAD
                 chosen_action = Action.NOTHING
@@ -453,6 +452,8 @@ if __name__ == "__main__":
     if len(sprite_museum) == 0:
         evil_sprites = list(map(lambda t: t[1], filter(lambda s: s[2] == Target.UGLY, sprites)))
         sprite_museum = [(random.choice(evil_sprites), pos) for pos in available_bg_positions]
+    else:
+        sdl2.sdlmixer.Mix_PlayChannel(-1, applause_sound, 0)
     sprite_museum.sort(key=lambda t: (t[1][1], t[1][0]))
     while running:
         if should_close():
