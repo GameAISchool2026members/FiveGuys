@@ -287,7 +287,7 @@ if __name__ == "__main__":
     if len(sprite_museum) == 0:
         evil_sprites = list(map(lambda t: t[1], filter(lambda s: s[2] == Target.UGLY, sprites)))
         sprite_museum = [(random.choice(evil_sprites), pos) for pos in available_bg_positions]
-    sprite_museum.sort(key=lambda t: (t[1][1], t[1][0]))
+    sprite_museum.sort(key=lambda t: (-t[1][1], t[1][0]))
     while running:
         if should_close():
             running = False
